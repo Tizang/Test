@@ -18,7 +18,7 @@ export default function Zahlungsdaten() {
   const [error, setError] = useState<string | null>(null);
   const [existingAccountChecked, setExistingAccountChecked] = useState(false);
 
-  // reset all Stripe–connect state when the Firebase user changes
+  // reset all Mollie-connect state when the Firebase user changes
   useEffect(() => {
     setAccountId(null);
     setOnboardUrl(null);
@@ -27,13 +27,13 @@ export default function Zahlungsdaten() {
     setExistingAccountChecked(false);
   }, [firebaseUid]);
 
-  // check if we've already created a Stripe account for this UID
+  // check if we've already created a Mollie account for this UID
   useEffect(() => {
     if (!firebaseUid) {
       setExistingAccountChecked(true);
       return;
     }
-    fetch(`http://localhost:5001/api/zahlung/account/${firebaseUid}`)
+    fetch(`https://gutscheinery.de/api/zahlung/account/${firebaseUid}`)
       .then(res => res.json())
       .then(data => {
         if (data.accountId) {
@@ -46,12 +46,12 @@ export default function Zahlungsdaten() {
 
   const missingData = !firebaseUid || !unternehmensname || !email;
 
-  const connectStripe = async () => {
+  const connectMollie = async () => {
     setLoading(true);
     setError(null);
     try {
-      // 1. Create Stripe account
-      const createRes = await fetch('http://localhost:5001/api/zahlung/create-account', {
+      // 1. Create Mollie account
+      const createRes = await fetch('https://gutscheinery.de/api/zahlung/create-account', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ firebaseUid, name: unternehmensname, email }),
@@ -61,7 +61,7 @@ export default function Zahlungsdaten() {
       setAccountId(newAccountId);
 
       // 2. Generate onboarding link
-      const linkRes = await fetch(`http://localhost:5001/api/zahlung/onboard/${newAccountId}`);
+      const linkRes = await fetch(`https://gutscheinery.de/api/zahlung/onboard/${newAccountId}`);
       if (!linkRes.ok) throw new Error('Onboarding-Link fehlgeschlagen');
       const linkData = await linkRes.json();
       const url = linkData.url || linkData.link || linkData.accountLink?.url;
@@ -79,7 +79,7 @@ export default function Zahlungsdaten() {
     <Box sx={{ maxWidth: 500, m: '0 auto', display: 'flex', flexDirection: 'column', gap: 2 }}>
       <Typography variant="h4">Zahlungsdaten</Typography>
       <Typography color="textSecondary" mb={2}>
-        Bitte hinterlegen Sie Ihre Auszahlungskonten über Stripe:
+        Bitte hinterlegen Sie Ihre Auszahlungskonten über Mollie:
       </Typography>
 
       {/* Basis-Daten aus Step 1 */}
@@ -127,14 +127,14 @@ export default function Zahlungsdaten() {
       {/* Bereits verbunden */}
       {!loading && existingAccountChecked && accountId && (
         <Typography color="primary" mb={2}>
-          Stripe Connect Konto erfolgreich erstellt.
+          Mollie-Konto erfolgreich erstellt.
         </Typography>
       )}
 
       {/* Button nur für neue UIDs */}
       {!loading && existingAccountChecked && !accountId && !error && !missingData && (
-        <Button variant="contained" color="primary" onClick={connectStripe}>
-          Mit Stripe verbinden
+        <Button variant="contained" color="primary" onClick={connectMollie}>
+          Mit Mollie verbinden
         </Button>
       )}
     </Box>

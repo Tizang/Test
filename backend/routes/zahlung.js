@@ -2,57 +2,38 @@ require("dotenv").config();
 const Unternehmen = require("../models/Unternehmen");
 const express = require("express");
 const router  = express.Router();
-const Stripe  = require("stripe");
-const stripe  = new Stripe(process.env.STRIPE_SECRET_KEY);
+const createMollieClient = require('@mollie/api-client');
+const mollie = createMollieClient({ apiKey: process.env.MOLLIE_API_KEY });
 
 // Express Connect: Konto anlegen
-router.post("/create-account", async (req, res) => {
-  try {
-    const account = await stripe.accounts.create({ type: "express" });
-    res.json({ accountId: account.id });
-  } catch (err) {
-    console.error("Connect-Fehler beim Erstellen des Accounts:", err);
-    res.status(500).json({ error: err.message });
-  }
+// Mollie Connect would require an OAuth flow which is not implemented here
+router.post("/create-account", (req, res) => {
+  res.status(501).json({ error: "Mollie Connect nicht implementiert" });
 });
 
 // Express Connect: Onboarding-Link generieren
-router.get("/onboard/:accountId", async (req, res) => {
-  try {
-    const link = await stripe.accountLinks.create({
-      account: req.params.accountId,
-      refresh_url: `${process.env.DOMAIN}/reauth`,
-      return_url: `${process.env.DOMAIN}/success`,
-      type: "account_onboarding",
-    });
-    res.json({ url: link.url });
-  } catch (err) {
-    console.error("Connect-Fehler beim Erzeugen des Onboarding-Links:", err);
-    res.status(500).json({ error: err.message });
-  }
+router.get("/onboard/:accountId", (req, res) => {
+  res.status(501).json({ error: "Mollie Connect nicht implementiert" });
 });
 
-router.post("/create-payment-intent", async (req, res) => {
+router.post("/create-payment", async (req, res) => {
   const { amount, customerEmail } = req.body;
   if (amount == null || !customerEmail) {
     return res.status(400).json({ error: "amount und customerEmail sind erforderlich" });
   }
   try {
-    // Für jetzt erstellen wir einfach einen Payment Intent ohne Connect
-    // Sie können später die Unternehmen-Logik hinzufügen
-    const paymentIntent = await stripe.paymentIntents.create({
-      amount: amount,
-      currency: "eur",
-      payment_method_types: ["card"],
-      metadata: {
-        customerEmail: customerEmail
-      }
+    const payment = await mollie.payments.create({
+      amount: { value: (amount / 100).toFixed(2), currency: "EUR" },
+      description: "Gutschein",
+      redirectUrl: `${process.env.DOMAIN}/success`,
+      webhookUrl: `${process.env.DOMAIN}/api/webhook`,
+      metadata: { customerEmail }
     });
-    res.json({ clientSecret: paymentIntent.client_secret });
+    res.json({ paymentUrl: payment._links.checkout.href });
   } catch (err) {
-    console.error("Stripe-Fehler:", err);
+    console.error("Mollie-Fehler:", err);
     res.status(500).json({ error: err.message });
   }
-});
+  });
 
 module.exports = router;

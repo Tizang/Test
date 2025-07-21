@@ -3,111 +3,36 @@ import { useState, useEffect } from 'react';
 import ArrowForwardIosIcon from '@mui/icons-material/ArrowForwardIos';
 import DownloadIcon from '@mui/icons-material/Download';
 import TopLeftLogo from '../components/home/TopLeftLogo';
-import { loadStripe } from '@stripe/stripe-js';
-import { Elements, useStripe, useElements, CardElement } from '@stripe/react-stripe-js';
 import { useParams } from 'react-router-dom';
 import { loadCheckoutDataBySlug, CheckoutData } from '../utils/loadCheckoutData';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 
-const stripePromise = loadStripe('your-publishable-key-here');
 
-function PaymentOptions({ onSelect }: { onSelect: (method: string) => void }) {
-  return (
-    <Box sx={{ display: 'flex', justifyContent: 'space-between', gap: 2, mt: 4 }}>
-      <Button
-        variant="outlined"
-        startIcon={<ArrowForwardIosIcon />}
-        onClick={() => onSelect('card')}
-        sx={{
-          borderRadius: 2,
-          px: 2,
-          py: 1.5,
-          textTransform: 'none',
-          boxShadow: 1,
-          flex: 1,
-        }}
-      >
-        Kredit-/ Debit
-      </Button>
-      <Button
-        variant="outlined"
-        startIcon={<DownloadIcon />}
-        onClick={() => onSelect('apple_pay')}
-        sx={{
-          borderRadius: 2,
-          px: 2,
-          py: 1.5,
-          textTransform: 'none',
-          boxShadow: 1,
-          flex: 1,
-        }}
-      >
-        Apple Pay
-      </Button>
-      <Button
-        variant="outlined"
-        startIcon={<ArrowForwardIosIcon />}
-        onClick={() => onSelect('google_pay')}
-        sx={{
-          borderRadius: 2,
-          px: 2,
-          py: 1.5,
-          textTransform: 'none',
-          boxShadow: 1,
-          flex: 1,
-        }}
-      >
-        Google Pay
-      </Button>
-      <Button
-        variant="outlined"
-        startIcon={<DownloadIcon />}
-        onClick={() => onSelect('paypal')}
-        sx={{
-          borderRadius: 2,
-          px: 2,
-          py: 1.5,
-          textTransform: 'none',
-          boxShadow: 1,
-          flex: 1,
-        }}
-      >
-        PayPal
-      </Button>
-    </Box>
-  );
-}
-
-function PaymentForm({ betrag, onPaymentSuccess }: { betrag: number | null, onPaymentSuccess: (betrag: number) => void }) {
-  const stripe = useStripe();
-  const elements = useElements();
-  const [paymentMethod, setPaymentMethod] = useState<string | null>(null);
-
+function PaymentForm({ betrag, onPaymentSuccess }: { betrag: number | null; onPaymentSuccess: (betrag: number) => void }) {
   const handlePayment = async () => {
-    if (!stripe || !elements || !betrag || !paymentMethod) {
-      alert('Bitte wählen Sie eine Zahlungsmethode und geben Sie einen Betrag ein.');
+    if (!betrag) {
+      alert('Bitte geben Sie einen Betrag ein.');
       return;
     }
 
-    // Simuliere erfolgreiche Zahlung für Demo
-    alert('Zahlung erfolgreich!');
-    
-    // Übergebe den Betrag an die Parent-Komponente
-    onPaymentSuccess(betrag);
+    const response = await fetch('https://gutscheinery.de/api/zahlung/create-payment', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ amount: betrag * 100 }),
+    });
+
+    if (!response.ok) {
+      alert('Zahlung fehlgeschlagen');
+      return;
+    }
+
+    const { paymentUrl } = await response.json();
+    window.location.href = paymentUrl;
   };
 
   return (
     <Box sx={{ mt: 4 }}>
-      <Typography variant="body1" sx={{ mb: 2 }}>
-        Wählen Sie Ihre Zahlungsmethode:
-      </Typography>
-      <PaymentOptions onSelect={setPaymentMethod} />
-      {paymentMethod === 'card' && (
-        <Box sx={{ border: '1px solid #ccc', borderRadius: '8px', p: 2, mb: 4, mt: 2 }}>
-          <CardElement options={{ hidePostalCode: true }} />
-        </Box>
-      )}
       <Button
         variant="contained"
         size="large"
@@ -447,7 +372,6 @@ export default function GutscheinLandingPage() {
   };
 
   return (
-    <Elements stripe={stripePromise}>
       <Box sx={{ minHeight: '100vh', overflow: 'hidden', position: 'relative', display: 'flex', flexDirection: { xs: 'column', md: 'row' } }}>
         <TopLeftLogo />
 
@@ -615,6 +539,5 @@ export default function GutscheinLandingPage() {
         >
         </Box>
       </Box>
-    </Elements>
   );
 }

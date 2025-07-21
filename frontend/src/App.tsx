@@ -12,7 +12,6 @@ import EinnahmenPage from './pages/profil/Einnahmen';
 import EinstellungenPage from './pages/profil/Einstellungen';
 import SelbstDesign from './pages/profil/design';
 import Checkout from './pages/checkout';
-import CheckputDemo from './pages/checkoutdemo';
 import CheckoutC from './pages/checkoutc';
 import Success from './pages/link';
 import { GutscheinProvider } from './context/GutscheinContext';
@@ -29,11 +28,6 @@ export default function App() {
         <Route path="/success" element={
           <GutscheinProvider>
             <Success />
-          </GutscheinProvider>
-        } />
-        <Route path="/checkoutdemo" element={
-          <GutscheinProvider>
-            <CheckputDemo />
           </GutscheinProvider>
         } />
         <Route path="/profil" element={<Profil />}>
