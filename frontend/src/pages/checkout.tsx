@@ -1,5 +1,5 @@
 import { Box, Typography, Button, IconButton, Stack } from '@mui/material';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import UploadIcon from '@mui/icons-material/Upload';
 import ArrowForwardIosIcon from '@mui/icons-material/ArrowForwardIos';
 import CreditCardIcon from '@mui/icons-material/CreditCard';
@@ -32,11 +32,57 @@ function PaymentOptions({ onSelect }: { onSelect: (m: string) => void }) {
 function PaymentForm({ betrag, customerEmail }: { betrag: number | null; customerEmail: string }) {
   const [method, setMethod] = useState<string | null>(null);
 
+  const cardRef = useRef<HTMLDivElement | null>(null);
+  const mollieInstance = useRef<any>(null);
+
+  // load Mollie script when credit card is selected
+  useEffect(() => {
+    if (method !== 'creditcard' || mollieInstance.current) return;
+    const script = document.createElement('script');
+    script.src = 'https://js.mollie.com/v1/mollie.js';
+    script.onload = () => {
+      const Mollie = (window as any).Mollie;
+      if (!Mollie) return;
+      const mollie = Mollie('test_dummy', { locale: 'de_DE' });
+      const card = mollie.createComponent('card');
+      card.mount(cardRef.current!);
+      mollieInstance.current = card;
+    };
+    document.body.appendChild(script);
+  }, [method]);
+
   const handlePayment = async () => {
     if (!betrag || !method) {
       alert('Bitte wählen Sie eine Zahlungsmethode und geben Sie einen Betrag ein.');
       return;
     }
+
+    // direct credit card payment
+    if (method === 'creditcard' && mollieInstance.current) {
+      try {
+        const result = await mollieInstance.current.createToken();
+        if (result.error) {
+          alert(result.error.message);
+          return;
+        }
+        const response = await fetch('https://gutscheinery.de/api/zahlung/create-payment-direct', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ amount: betrag * 100, customerEmail, cardToken: result.token }),
+        });
+        if (!response.ok) {
+          const err = await response.json();
+          alert('Zahlung fehlgeschlagen: ' + (err.error || ''));
+          return;
+        }
+        alert('Zahlung erfolgreich!');
+      } catch (err: any) {
+        alert('Zahlung fehlgeschlagen: ' + err.message);
+      }
+      return;
+    }
+
+    // fallback: redirect to Mollie hosted page
 
     const response = await fetch('https://gutscheinery.de/api/zahlung/create-payment', {
       method: 'POST',
@@ -59,6 +105,11 @@ function PaymentForm({ betrag, customerEmail }: { betrag: number | null; custome
         Zahlungsmethode wählen:
       </Typography>
       <PaymentOptions onSelect={setMethod} />
+      {method === 'creditcard' && (
+        <Box sx={{ mt: 2 }}>
+          <div id="card-field" ref={cardRef} />
+        </Box>
+      )}
       <Button
         variant="contained"
         size="large"
